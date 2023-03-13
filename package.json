@@ -10,14 +10,28 @@
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "onStartupFinished"
   ],
   "main": "./extension.js",
   "contributes": {
-    "commands": [{
+    "commands": [
+      {
       "command": "text-to-translate.helloWorld",
       "title": "Hello World"
-    }]
+      },
+      {
+        "command": "text-to-translate.doTranslation",
+        "title": "Do Translation"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "text-to-translate.doTranslation",
+          "group": "1_modification"
+        }
+      ]
+    }
   },
   "scripts": {
     "lint": "eslint .",
