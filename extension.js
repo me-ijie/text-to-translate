@@ -3,7 +3,7 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
-
+const editContent = require('./editContent');
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -22,29 +22,30 @@ function activate(context) {
   disposable.push(item)
 
   item = vscode.commands.registerCommand("text-to-translate.doTranslation", async (...commandArgs) => {
-  
+
+    // 遍历当前文件/文件夹下的文件
     const modifyFiles = (resources) => {
+      // 用于保存 待翻译的文本
+      let holdSpace = []
+
       for (let resource of resources) {
         let filePath = resource.fsPath || resource
         let stats = fs.statSync(filePath);
-        if (stats.isFile()) {
+        let fileExtension = filePath.split('.').at(-1)
+        if (stats.isFile() && fileExtension === 'vue') {
           try {
             let fileContent = fs.readFileSync(filePath, 'utf8');
-            let content = fileContent.replace(/(^\s*[a-zA-Z-]+=")([\u4e00-\u9fa5]+)"$/gi, ($1, $2) => {
-              console.log('$2', $2)
-              return ':$1$t(\'$2\')"'
-            })
-            console.log('content', content)
+            let content = editContent(fileContent, holdSpace)
+
             fs.writeFileSync(filePath, content);
-            // const relativePath = vscode.workspace.asRelativePath(resource)
-            // const thisResource = vscode.Uri.parse(resource._formatted)
+
             // 打开文件
-            const openPath = vscode.Uri.file(resource);
+            const openPath = vscode.Uri.file(filePath);
             vscode.workspace.openTextDocument(openPath).then(doc => {
               vscode.window.showTextDocument(doc);
             });
           } catch (e) {
-            vscode.window.showInformationMessage('You do not have permission to access this file!')
+            console.log('error:', e)
           }
 
         } else if (stats.isDirectory()) {
@@ -61,50 +62,41 @@ function activate(context) {
           });
         }
       }
+
+      return holdSpace
     }
-    if (commandArgs[1][0] instanceof vscode.Uri)  modifyFiles(commandArgs[1])
+
+    // 写入待翻译文本文档
+    const storeForTranslation = async (content) => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+    
+      if (!workspaceFolders) {
+        vscode.window.showErrorMessage('No workspace is open');
+        return;
+      }
+      
+      const allFiles = await vscode.workspace.findFiles('src/i18n/**/*', '**/node_modules/**');
+      const targetFile = allFiles.find(file => path.basename(file.fsPath) === 'i18n-translate-template.txt');
+      if (!targetFile) {
+        console.log('allfiles', allFiles)
+        vscode.window.showErrorMessage('File i18n-translate-template not found in the workspace');
+        return;
+      }
+
+      fs.writeFileSync(targetFile.fsPath, content);
+    }
+    let texts = []
+    if (commandArgs[1][0] instanceof vscode.Uri) {
+      texts = modifyFiles(commandArgs[1])
+    }
+    if (texts.length) {
+      let content = texts.join('\n')
+      storeForTranslation(content)
+    }
+
     vscode.window.showInformationMessage('translation completed!')
   })
   disposable.push(item)
-
-    // vscode.commands.registerCommand('text-to-translate.addshortcuts', function () {
-
-    
-    // let shortcuts = [
-    //   {
-    //     "key": "ctrl+r",
-    //     "command": "editor.action.insertSnippet",
-    //     "args": { "snippet": "{{\\$t('${TM_SELECTED_TEXT}$1')}}" },
-    //     "when": "editorTextFocus&&editorHasSelection",
-    //     "name": "wrapText"
-    //   },
-    //   {
-    //     "key": "ctrl+e",
-    //     "command": "editor.action.insertSnippet",
-    //     "args": { "snippet": "$1\\$t(${TM_SELECTED_TEXT})" },
-    //     "when": "editorTextFocus&&editorHasSelection",
-    //     "name": "wrapText2"
-    //   },
-    //   {
-    //     "key": "ctrl+w",
-    //     "command": "editor.action.insertSnippet",
-    //     "args": { "snippet": "${TM_SELECTED_TEXT/([a-zA-Z-]+=\")([^\"]+)\"/:$1$t('$2')\"/g}" },
-    //     "when": "editorTextFocus&&editorHasSelection",
-    //     "name": "wrapText3"
-    //   },
-    //   {
-    //     "key" : "ctrl+shift+u",
-    //     "command" : "editor.action.transformToUppercase",
-    //     "when" : "editorHasSelection",
-    //     "name": "wrapText4"
-    //   }
-    // ]
-    // for (let keyObj of shortcuts) {
-    //   let name = keyObj['name']
-    //   delete keyObj.name
-    //   vscode.commands.executeCommand(`text-to-translate.${name}`, keyObj)
-    // })
-
 
 	context.subscriptions.push(...disposable);
 }
