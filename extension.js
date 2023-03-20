@@ -23,10 +23,10 @@ function activate(context) {
 
   item = vscode.commands.registerCommand("text-to-translate.doTranslation", async (...commandArgs) => {
 
+    // 用于保存 待翻译的文本
+    let holdSpace = []
     // 遍历当前文件/文件夹下的文件
     const modifyFiles = (resources) => {
-      // 用于保存 待翻译的文本
-      let holdSpace = []
 
       for (let resource of resources) {
         let filePath = resource.fsPath || resource
@@ -36,14 +36,14 @@ function activate(context) {
           try {
             let fileContent = fs.readFileSync(filePath, 'utf8');
             let content = editContent(fileContent, holdSpace)
-
+            console.log('holdSpace', holdSpace)
             fs.writeFileSync(filePath, content);
 
             // 打开文件
-            const openPath = vscode.Uri.file(filePath);
-            vscode.workspace.openTextDocument(openPath).then(doc => {
-              vscode.window.showTextDocument(doc);
-            });
+            // const openPath = vscode.Uri.file(filePath);
+            // vscode.workspace.openTextDocument(openPath).then(doc => {
+            //   vscode.window.showTextDocument(doc);
+            // });
           } catch (e) {
             console.log('error:', e)
           }
@@ -85,13 +85,12 @@ function activate(context) {
 
       fs.writeFileSync(targetFile.fsPath, content);
     }
-    let texts = []
     if (commandArgs[1][0] instanceof vscode.Uri) {
-      texts = modifyFiles(commandArgs[1])
+      modifyFiles(commandArgs[1])
     }
-    if (texts.length) {
-      let content = texts.join('\n')
-      storeForTranslation(content)
+    console.log('holdspace after', holdSpace)
+    if (holdSpace.length) {
+      storeForTranslation(holdSpace.join('\n'))
     }
 
     vscode.window.showInformationMessage('translation completed!')

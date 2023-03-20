@@ -1,19 +1,28 @@
 module.exports = function (content, holdSpace) {
 
+  let htmlString = content.split('<script>')[0]
+  let scriptString = content.split('<script>')[1]
+
   let attrTextReg = /([a-zA-Z-]+=")([\u4e00-\u9fa5]+)"/gi
-  let plainTextReg = /(>\s*)([\u4e00-\u9fa5]+)(\s*<)/gi
-  let string = content.replace(attrTextReg, (match, $1, $2) => {
+  let plainTextReg = /(>\s*)([\u4e00-\u9fa5]+[\u4e00-\u9fa5\p{P}]*)(\s*<)/gi
+  let scriptTextReg = /'([\u4e00-\u9fa5]+[\u4e00-\u9fa5\p{P}]*)'/giu
+
+  htmlString = htmlString.replace(attrTextReg, (match, $1, $2) => {
     !holdSpace.includes($2) && holdSpace.push($2)
     return `:${$1}$t('${$2}')"`
   })
 
-  string = string.replace(plainTextReg, (match, $1, $2, $3) => {
+  htmlString = htmlString.replace(plainTextReg, (match, $1, $2, $3) => {
     !holdSpace.includes($2) && holdSpace.push($2)
     return `${$1}{{ $t('${$2}') }}${$3}`
   })
 
-  return string
-  
+  scriptString = scriptString.replace(scriptTextReg, (match, $1) => {
+    !holdSpace.includes($1) && holdSpace.push($1)
+    return `this.$t('${$1}')`
+  }) 
+
+  return htmlString + '<script>' + scriptString
   
     // 执行 sed 命令，替换字符串
     // exec(`echo ${str} | sed 's/\\(a\\"\\)\\(b\\)\\(\\"c\\)/:\\1(\\2)\\3/g'`, (error, stdout, stderr) => {
@@ -24,8 +33,6 @@ module.exports = function (content, holdSpace) {
     //   // 输出替换后的字符串
     //   console.log(stdout.trim());
     // });
-  
-  
   
     //   ```
     // sed -E 's/(pattern1)|(pattern2)/\n1: \1\n2: \2/g; H; x; s/\n//'
